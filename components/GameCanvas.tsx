@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { GameStatus, NPC, Passenger } from '../types';
 import { WORLD_COLORS, WORLD_WIDTH, WORLD_HEIGHT, ROAD_TOP, ROAD_BOTTOM, INTERACTION_RANGE } from '../constants';
@@ -28,10 +27,33 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ playerPos, npcs, scrollOffset, 
         </defs>
         <rect y={ROAD_TOP} width={WORLD_WIDTH} height={ROAD_BOTTOM - ROAD_TOP} fill="url(#roadPattern)" stroke="black" strokeWidth="4" />
 
-        {/* NPCs / Encounter Markers / People */}
+        {/* NPCs / Encounter Markers / People / Coins */}
         {npcs.map(npc => {
           const isNear = Math.abs(npc.x - playerPos.x) < INTERACTION_RANGE && Math.abs(npc.y - playerPos.y) < INTERACTION_RANGE;
           
+          if (npc.type === 'coin') {
+              const isBig = npc.encounterId === 'big_coin';
+              return (
+                <g key={npc.id} transform={`translate(${npc.x}, ${npc.y})`}>
+                    {/* Coin Shadow */}
+                    <ellipse rx={isBig ? 12 : 8} ry={2} cy={isBig ? 18 : 12} fill="rgba(0,0,0,0.3)" />
+                    {/* Glowing Effect for Big Coins */}
+                    {isBig && <circle r="20" fill="url(#coinGlow)" opacity="0.4" />}
+                    <g className="animate-bounce">
+                        <circle r={isBig ? 14 : 9} fill={isBig ? "#fbbf24" : "#f59e0b"} stroke="black" strokeWidth="2" />
+                        <circle r={isBig ? 10 : 6} fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2" />
+                        <text textAnchor="middle" y={isBig ? 6 : 4} className={`fill-yellow-950 font-black ${isBig ? 'text-[14px]' : 'text-[10px]'}`}>$</text>
+                    </g>
+                    <defs>
+                        <radialGradient id="coinGlow">
+                            <stop offset="0%" stopColor="#fbbf24" />
+                            <stop offset="100%" stopColor="transparent" />
+                        </radialGradient>
+                    </defs>
+                </g>
+              );
+          }
+
           if (npc.type === 'person') {
               return (
                 <g key={npc.id} transform={`translate(${npc.x}, ${npc.y})`}>

@@ -1,4 +1,3 @@
-
 export interface Passenger {
   id: string;
   name: string;
@@ -30,7 +29,7 @@ export interface Choice {
   flagToSet?: string;
   requiredFlag?: string;
   requiredPassengerType?: 'merchant' | 'cook' | 'scholar' | 'guard';
-  action?: 'continue_journey' | 'end_journey';
+  action?: 'continue_journey' | 'end_journey' | 'remove_passenger';
   color?: string; // Add color for UI punch
 }
 
@@ -46,7 +45,7 @@ export interface NPC {
   id: string;
   x: number;
   y: number;
-  type: 'trader' | 'bandit' | 'traveler' | 'mystic' | 'haven' | 'food_cart' | 'person';
+  type: 'trader' | 'bandit' | 'traveler' | 'mystic' | 'haven' | 'food_cart' | 'person' | 'coin';
   encounterId: string;
   width: number;
   height: number;
