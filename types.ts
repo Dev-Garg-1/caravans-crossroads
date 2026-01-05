@@ -53,6 +53,16 @@ export interface NPC {
   passengerData?: Passenger;
 }
 
+export interface Bullet {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+}
+
 export type VictoryType = 'hero' | 'merchant_prince' | 'iron_monger' | 'survivor';
 
 export type GameStatus = 'title' | 'playing' | 'encounter' | 'gameover' | 'victory';
+
+export type ControlMode = 'caravan' | 'person';

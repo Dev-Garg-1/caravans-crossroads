@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ResourceState, GameStatus, Encounter, Choice, VictoryType, NPC, Passenger } from './types';
+import { ResourceState, GameStatus, Encounter, Choice, VictoryType, NPC, Passenger, ControlMode, Bullet } from './types';
 import { INITIAL_RESOURCES, PLAYER_SPEED, SCROLL_SPEED, FOOD_DRAIN_RATE, WORLD_WIDTH, WORLD_HEIGHT, ROAD_TOP, ROAD_BOTTOM, INTERACTION_RANGE } from './constants';
 import { ENCOUNTERS } from './data/gameData';
 import GameCanvas from './components/GameCanvas';
@@ -57,7 +57,7 @@ function decodeBase64(base64: string) {
   return bytes;
 }
 
-const playSound = (type: 'select' | 'confirm' | 'trade' | 'collision' | 'move' | 'gameover' | 'victory' | 'hurt' | 'onboard' | 'type') => {
+const playSound = (type: 'select' | 'confirm' | 'trade' | 'collision' | 'move' | 'gameover' | 'victory' | 'hurt' | 'onboard' | 'type' | 'shoot' | 'impact') => {
   if (!audioCtx) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -66,6 +66,22 @@ const playSound = (type: 'select' | 'confirm' | 'trade' | 'collision' | 'move' |
   const now = audioCtx.currentTime;
 
   switch(type) {
+    case 'shoot':
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.1);
+      osc.start(); osc.stop(now + 0.1);
+      break;
+    case 'impact':
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(100, now);
+      osc.frequency.exponentialRampToValueAtTime(10, now + 0.2);
+      gain.gain.setValueAtTime(0.1, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.2);
+      osc.start(); osc.stop(now + 0.2);
+      break;
     case 'type':
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(200 + Math.random() * 50, now);
@@ -146,11 +162,14 @@ const playSound = (type: 'select' | 'confirm' | 'trade' | 'collision' | 'move' |
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>('title');
+  const [controlMode, setControlMode] = useState<ControlMode>('caravan');
   const [isPaused, setIsPaused] = useState(false);
   const [victoryType, setVictoryType] = useState<VictoryType | null>(null);
   const [resources, setResources] = useState<ResourceState>(INITIAL_RESOURCES);
   const [playerPos, setPlayerPos] = useState({ x: 200, y: 300 });
+  const [personPos, setPersonPos] = useState({ x: 200, y: 300 });
   const [npcs, setNpcs] = useState<NPC[]>([]);
+  const [bullets, setBullets] = useState<Bullet[]>([]);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [activeEncounter, setActiveEncounter] = useState<Encounter | null>(null);
   const [lastChoiceResult, setLastChoiceResult] = useState<string | null>(null);
@@ -365,7 +384,10 @@ const App: React.FC = () => {
     playSound('confirm');
     setResources(INITIAL_RESOURCES);
     setPlayerPos({ x: 200, y: 300 });
+    setPersonPos({ x: 200, y: 300 });
+    setControlMode('caravan');
     setNpcs([]);
+    setBullets([]);
     setScrollOffset(0);
     setFlags(new Set());
     setVictoryType(null);
@@ -410,51 +432,95 @@ const App: React.FC = () => {
       requestRef.current = requestAnimationFrame(gameLoop);
       return;
     }
+
     const currentSpeed = PLAYER_SPEED * (flags.has('speed_upgrade') ? 1.4 : 1.0);
-    setPlayerPos(prev => {
-      let nx = prev.x, ny = prev.y;
-      if (keys.current.has('w') || keys.current.has('arrowup')) ny -= currentSpeed;
-      if (keys.current.has('s') || keys.current.has('arrowdown')) ny += currentSpeed;
-      if (keys.current.has('a') || keys.current.has('arrowleft')) nx -= currentSpeed;
-      if (keys.current.has('d') || keys.current.has('arrowright')) nx += currentSpeed;
-      return { x: Math.max(50, Math.min(WORLD_WIDTH - 50, nx)), y: Math.max(ROAD_TOP + 20, Math.min(ROAD_BOTTOM - 20, ny)) };
-    });
-    setResources(prev => {
-      const isMoving = keys.current.size > 0;
-      let drainMultiplier = 1.0;
-      if (prev.passengers.some(p => p.type === 'cook')) drainMultiplier *= 0.8;
-      if (flags.has('efficiency_upgrade')) drainMultiplier *= 0.75;
-      let nextFood = Math.max(0, prev.food - (isMoving ? FOOD_DRAIN_RATE * 2 : FOOD_DRAIN_RATE) * drainMultiplier);
-      let nextLives = prev.lives;
-      if (nextFood <= 0) {
-        if (nextLives > 1) { playSound('hurt'); nextLives -= 1; nextFood = 50; }
-        else { playSound('gameover'); setStatus('gameover'); stopAllAudio(); }
-      }
-      return { ...prev, food: nextFood, lives: nextLives, progress: Math.min(100, prev.progress + (SCROLL_SPEED / 80)), score: (prev.gold * 10) + (prev.reputation * 50) + Math.floor(prev.progress * 10) };
-    });
-    setScrollOffset(prev => (prev + SCROLL_SPEED) % 100);
-    setNpcs(prev => {
-      const updated = prev.map(n => ({ ...n, x: n.x - SCROLL_SPEED * n.speedMultiplier })).filter(n => n.x > -150);
-      const coinHitIndex = updated.findIndex(n => n.type === 'coin' && Math.abs(n.x - playerPos.x) < 35 && Math.abs(n.y - playerPos.y) < 35);
-      if (coinHitIndex !== -1) {
-        playSound('trade');
-        const val = updated[coinHitIndex].encounterId === 'big_coin' ? 25 : 5;
-        setResources(r => ({ ...r, gold: r.gold + val }));
-        return updated.filter((_, i) => i !== coinHitIndex);
-      }
-      const hit = updated.find(n => n.type !== 'person' && n.type !== 'coin' && Math.abs(n.x - playerPos.x) < 45 && Math.abs(n.y - playerPos.y) < 45);
-      if (hit) {
-        playSound('collision');
-        setActiveEncounter(ENCOUNTERS[hit.encounterId]);
-        setStatus('encounter');
-        return updated.filter(n => n.id !== hit.id);
-      }
-      return updated;
-    });
-    spawnTimer.current += 16;
-    if (spawnTimer.current > 1300 && resources.progress < 95) { spawnNPC(); spawnTimer.current = 0; }
+    const personSpeed = PLAYER_SPEED * 1.2;
+
+    if (controlMode === 'person') {
+      setPersonPos(prev => {
+        let nx = prev.x, ny = prev.y;
+        if (keys.current.has('w') || keys.current.has('arrowup')) ny -= personSpeed;
+        if (keys.current.has('s') || keys.current.has('arrowdown')) ny += personSpeed;
+        if (keys.current.has('a') || keys.current.has('arrowleft')) nx -= personSpeed;
+        if (keys.current.has('d') || keys.current.has('arrowright')) nx += personSpeed;
+        return { x: Math.max(0, Math.min(WORLD_WIDTH, nx)), y: Math.max(0, Math.min(WORLD_HEIGHT, ny)) };
+      });
+      // Bullet movement and collision
+      setBullets(prev => {
+        const next = prev.map(b => ({ ...b, x: b.x + b.vx, y: b.y + b.vy })).filter(b => b.x > 0 && b.x < WORLD_WIDTH && b.y > 0 && b.y < WORLD_HEIGHT);
+        
+        let hitNpcId: string | null = null;
+        let bulletIdToRemove: string | null = null;
+
+        for (const bullet of next) {
+          const hit = npcs.find(n => (n.type === 'trader' || n.type === 'food_cart' || n.type === 'bandit' || n.type === 'mystic') && Math.abs(n.x - bullet.x) < 30 && Math.abs(n.y - bullet.y) < 30);
+          if (hit) {
+            hitNpcId = hit.id;
+            bulletIdToRemove = bullet.id;
+            break;
+          }
+        }
+
+        if (hitNpcId) {
+          playSound('impact');
+          setResources(r => ({ ...r, gold: Math.max(0, r.gold - 10) }));
+          setNpcs(n => n.filter(npc => npc.id !== hitNpcId));
+          return next.filter(b => b.id !== bulletIdToRemove);
+        }
+
+        return next;
+      });
+    } else {
+      setPlayerPos(prev => {
+        let nx = prev.x, ny = prev.y;
+        if (keys.current.has('w') || keys.current.has('arrowup')) ny -= currentSpeed;
+        if (keys.current.has('s') || keys.current.has('arrowdown')) ny += currentSpeed;
+        if (keys.current.has('a') || keys.current.has('arrowleft')) nx -= currentSpeed;
+        if (keys.current.has('d') || keys.current.has('arrowright')) nx += currentSpeed;
+        return { x: Math.max(50, Math.min(WORLD_WIDTH - 50, nx)), y: Math.max(ROAD_TOP + 20, Math.min(ROAD_BOTTOM - 20, ny)) };
+      });
+      
+      setResources(prev => {
+        const isMoving = keys.current.size > 0;
+        let drainMultiplier = 1.0;
+        if (prev.passengers.some(p => p.type === 'cook')) drainMultiplier *= 0.8;
+        if (flags.has('efficiency_upgrade')) drainMultiplier *= 0.75;
+        let nextFood = Math.max(0, prev.food - (isMoving ? FOOD_DRAIN_RATE * 2 : FOOD_DRAIN_RATE) * drainMultiplier);
+        let nextLives = prev.lives;
+        if (nextFood <= 0) {
+          if (nextLives > 1) { playSound('hurt'); nextLives -= 1; nextFood = 50; }
+          else { playSound('gameover'); setStatus('gameover'); stopAllAudio(); }
+        }
+        return { ...prev, food: nextFood, lives: nextLives, progress: Math.min(100, prev.progress + (SCROLL_SPEED / 80)), score: (prev.gold * 10) + (prev.reputation * 50) + Math.floor(prev.progress * 10) };
+      });
+      
+      setScrollOffset(prev => (prev + SCROLL_SPEED) % 100);
+      
+      setNpcs(prev => {
+        const updated = prev.map(n => ({ ...n, x: n.x - SCROLL_SPEED * n.speedMultiplier })).filter(n => n.x > -150);
+        const coinHitIndex = updated.findIndex(n => n.type === 'coin' && Math.abs(n.x - playerPos.x) < 35 && Math.abs(n.y - playerPos.y) < 35);
+        if (coinHitIndex !== -1) {
+          playSound('trade');
+          const val = updated[coinHitIndex].encounterId === 'big_coin' ? 25 : 5;
+          setResources(r => ({ ...r, gold: r.gold + val }));
+          return updated.filter((_, i) => i !== coinHitIndex);
+        }
+        const hit = updated.find(n => n.type !== 'person' && n.type !== 'coin' && Math.abs(n.x - playerPos.x) < 45 && Math.abs(n.y - playerPos.y) < 45);
+        if (hit) {
+          playSound('collision');
+          setActiveEncounter(ENCOUNTERS[hit.encounterId]);
+          setStatus('encounter');
+          return updated.filter(n => n.id !== hit.id);
+        }
+        return updated;
+      });
+
+      spawnTimer.current += 16;
+      if (spawnTimer.current > 1300 && resources.progress < 95) { spawnNPC(); spawnTimer.current = 0; }
+    }
+
     requestRef.current = requestAnimationFrame(gameLoop);
-  }, [status, playerPos, spawnNPC, isPaused, flags, musicVolume, ambientVolume]);
+  }, [status, playerPos, personPos, controlMode, npcs, spawnNPC, isPaused, flags, musicVolume, ambientVolume]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(gameLoop);
@@ -462,11 +528,56 @@ const App: React.FC = () => {
   }, [gameLoop]);
 
   useEffect(() => {
+    const handleMouseDown = (e: MouseEvent) => {
+      if (status === 'playing' && controlMode === 'person') {
+        playSound('shoot');
+        // Bullets always travel to the right at a fixed speed
+        const speed = 12;
+        
+        const bullet: Bullet = {
+          id: Math.random().toString(),
+          x: personPos.x + 10, // Offset to fire from the gun barrel
+          y: personPos.y - 8,
+          vx: speed,
+          vy: 0
+        };
+        
+        setBullets(prev => [...prev, bullet]);
+      }
+    };
+
+    window.addEventListener('mousedown', handleMouseDown);
+    return () => window.removeEventListener('mousedown', handleMouseDown);
+  }, [status, controlMode, personPos]);
+
+  useEffect(() => {
     const down = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
       if (key === 'p') { setIsPaused(prev => !prev); playSound('select'); return; }
+      
+      // Control Mode Switch Mechanic
+      if (key === 'c' && status === 'playing') {
+        if (controlMode === 'caravan') {
+          // Exit Caravan
+          playSound('onboard');
+          setControlMode('person');
+          setPersonPos({ x: playerPos.x, y: playerPos.y });
+          setBullets([]);
+        } else {
+          // Try Enter Caravan
+          const dist = Math.sqrt(Math.pow(personPos.x - playerPos.x, 2) + Math.pow(personPos.y - playerPos.y, 2));
+          if (dist < 80) {
+            playSound('confirm');
+            setControlMode('caravan');
+            setBullets([]);
+          }
+        }
+        return;
+      }
+
       keys.current.add(key);
-      if (status === 'playing' && key === 'e') {
+      
+      if (status === 'playing' && key === 'e' && controlMode === 'caravan') {
         const idx = npcs.findIndex(n => n.type === 'person' && Math.abs(n.x - playerPos.x) < INTERACTION_RANGE);
         if (idx !== -1) {
           const cap = flags.has('capacity_upgrade') ? 5 : 3;
@@ -477,6 +588,7 @@ const App: React.FC = () => {
           }
         }
       }
+      
       if (status === 'encounter' && activeEncounter && !lastChoiceResult) {
         const num = parseInt(key);
         if (!isNaN(num) && num > 0 && num <= activeEncounter.choices.length) handleChoice(activeEncounter.choices[num - 1]);
@@ -488,7 +600,7 @@ const App: React.FC = () => {
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [status, isPaused, activeEncounter, lastChoiceResult, npcs, playerPos]);
+  }, [status, isPaused, activeEncounter, lastChoiceResult, npcs, playerPos, personPos, controlMode]);
 
   const handleChoice = (choice: Choice) => {
     const hasRep = (choice.requiredFlag === 'reputation_10' ? resources.reputation >= 10 : true);
@@ -515,7 +627,7 @@ const App: React.FC = () => {
 
   return (
     <div className="relative w-full h-screen bg-[#111] text-stone-100 overflow-hidden select-none">
-      <GameCanvas playerPos={playerPos} npcs={npcs} scrollOffset={scrollOffset} status={status} progress={resources.progress} passengers={resources.passengers} />
+      <GameCanvas playerPos={playerPos} personPos={personPos} controlMode={controlMode} npcs={npcs} bullets={bullets} scrollOffset={scrollOffset} status={status} progress={resources.progress} passengers={resources.passengers} />
       {status !== 'title' && status !== 'gameover' && status !== 'victory' && (
         <UIOverlay resources={resources} flags={flags} musicVolume={musicVolume} ambientVolume={ambientVolume} onSetMusicVolume={setMusicVolume} onSetAmbientVolume={setAmbientVolume} onPlaySound={playSound} />
       )}
@@ -555,6 +667,12 @@ const App: React.FC = () => {
                   </div>
               </div>
           </div>
+      )}
+      
+      {status === 'playing' && (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 bg-black/50 px-6 py-2 border-2 border-white/20 text-yellow-400 font-bold uppercase text-pixel tracking-widest pointer-events-none animate-in slide-in-from-bottom-4">
+           {controlMode === 'caravan' ? "PRESS [C] TO EXIT VEHICLE" : "LEFT CLICK TO SHOOT RIGHT | WALK NEAR VEHICLE AND PRESS [C] TO ENTER"}
+        </div>
       )}
     </div>
   );

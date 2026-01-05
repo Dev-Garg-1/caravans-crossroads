@@ -1,17 +1,20 @@
 import React from 'react';
-import { GameStatus, NPC, Passenger } from '../types';
+import { GameStatus, NPC, Passenger, ControlMode, Bullet } from '../types';
 import { WORLD_COLORS, WORLD_WIDTH, WORLD_HEIGHT, ROAD_TOP, ROAD_BOTTOM, INTERACTION_RANGE } from '../constants';
 
 interface GameCanvasProps {
   playerPos: { x: number, y: number };
+  personPos: { x: number, y: number };
+  controlMode: ControlMode;
   npcs: NPC[];
+  bullets: Bullet[];
   scrollOffset: number;
   status: GameStatus;
   progress: number;
   passengers: Passenger[];
 }
 
-const GameCanvas: React.FC<GameCanvasProps> = ({ playerPos, npcs, scrollOffset, status, progress, passengers }) => {
+const GameCanvas: React.FC<GameCanvasProps> = ({ playerPos, personPos, controlMode, npcs, bullets, scrollOffset, status, progress, passengers }) => {
   return (
     <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-[#1a1a1a]">
       <svg width={WORLD_WIDTH} height={WORLD_HEIGHT} viewBox={`0 0 ${WORLD_WIDTH} ${WORLD_HEIGHT}`} className="w-full h-auto shadow-2xl border-4 border-black">
@@ -44,13 +47,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ playerPos, npcs, scrollOffset, 
               const isBig = npc.encounterId === 'big_coin';
               return (
                 <g key={npc.id} transform={`translate(${npc.x}, ${npc.y})`}>
-                    {/* Glowing Aura */}
                     <circle r={isBig ? 30 : 20} fill={isBig ? "url(#coinGlowBig)" : "url(#coinGlowSmall)"} />
-                    
-                    {/* Coin Shadow */}
                     <ellipse rx={isBig ? 12 : 8} ry={2} cy={isBig ? 18 : 12} fill="rgba(0,0,0,0.4)" />
-                    
-                    {/* The Coin Body with bounce + rotate feel */}
                     <g className="animate-bounce">
                         <circle r={isBig ? 14 : 9} fill={isBig ? "#fbbf24" : "#f59e0b"} stroke="black" strokeWidth="2" />
                         <circle r={isBig ? 10 : 6} fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeDasharray="5,2" className="animate-[spin_3s_linear_infinite]" />
@@ -68,7 +66,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ playerPos, npcs, scrollOffset, 
                     <rect x="4" y="6" width="6" height="12" fill="#333" stroke="black" strokeWidth="1" />
                     <rect x="-12" y="-10" width="24" height="16" fill={npc.passengerData?.type === 'merchant' ? '#fbbf24' : npc.passengerData?.type === 'cook' ? '#f87171' : npc.passengerData?.type === 'scholar' ? '#60a5fa' : '#4ade80'} stroke="black" strokeWidth="2" />
                     <text y="-25" textAnchor="middle" className="fill-white text-[10px] font-bold uppercase tracking-widest bg-black/50">{npc.passengerData?.name}</text>
-                    {isNear && (
+                    {isNear && controlMode === 'caravan' && (
                         <g transform="translate(0, -50)">
                             <rect x="-40" y="-15" width="80" height="25" fill="black" rx="4" />
                             <text textAnchor="middle" y="3" className="fill-yellow-400 text-[10px] font-bold">PRESS [E] TO ONBOARD</text>
@@ -90,6 +88,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ playerPos, npcs, scrollOffset, 
           );
         })}
 
+        {/* Bullets */}
+        {bullets.map(b => (
+          <circle key={b.id} cx={b.x} cy={b.y} r="3" fill="#ff0" stroke="#000" strokeWidth="1" />
+        ))}
+
         {/* Player Caravan */}
         <g transform={`translate(${playerPos.x}, ${playerPos.y})`}>
           <rect x="-16" y="10" width="32" height="6" fill="rgba(0,0,0,0.3)" />
@@ -105,10 +108,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ playerPos, npcs, scrollOffset, 
              );
           })}
 
-          {status === 'playing' && (
+          {status === 'playing' && controlMode === 'caravan' && (
             <rect x="-25" y="5" width="4" height="4" fill="rgba(255,255,255,0.3)" className="animate-ping" />
           )}
         </g>
+
+        {/* Player Person (Controlled walking mode) */}
+        {controlMode === 'person' && (
+          <g transform={`translate(${personPos.x}, ${personPos.y})`}>
+             <rect x="-6" y="-14" width="12" height="18" fill="#ffdbac" stroke="black" strokeWidth="1" />
+             <rect x="-6" y="-4" width="12" height="10" fill="#3b82f6" stroke="black" strokeWidth="1" />
+             <rect x="-8" y="-14" width="16" height="4" fill="#333" />
+             
+             {/* THE GUN */}
+             <rect x="6" y="-8" width="8" height="4" fill="#000" stroke="#444" strokeWidth="1" />
+             <rect x="6" y="-6" width="2" height="6" fill="#000" stroke="#444" strokeWidth="1" />
+
+             <rect x="-4" y="4" width="3" height="4" fill="#000" className="animate-bounce" />
+             <rect x="1" y="4" width="3" height="4" fill="#000" className="animate-bounce" style={{animationDelay: '0.1s'}} />
+          </g>
+        )}
 
         {/* Progress Bar */}
         <g transform="translate(100, 30)">
