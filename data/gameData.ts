@@ -33,6 +33,145 @@ export const ENCOUNTERS: Record<string, Encounter> = {
       }
     ]
   },
+  food_provisioner: {
+    id: 'food_provisioner',
+    title: 'Traveling Provisioner',
+    description: 'A wagon laden with salted meats and dried grain pulls alongside yours. "The road is long and the stomach is demanding," the merchant grins.',
+    icon: '🧺',
+    choices: [
+      {
+        id: 'buy_food_bulk',
+        text: 'Buy Bulk Supplies (30 Gold for 50 Food)',
+        consequenceText: '"A wise investment. A full belly makes for a fast journey."',
+        goldCost: 30,
+        foodGain: 50,
+        color: 'bg-blue-600'
+      },
+      {
+        id: 'sell_surplus',
+        text: 'Sell Surplus (25 Food for 35 Gold)',
+        consequenceText: '"I can always find a buyer for fresh stock. Here is your coin."',
+        foodCost: 25,
+        goldGain: 35,
+        color: 'bg-amber-600'
+      },
+      {
+        id: 'rob_cart',
+        text: 'Rob the Cart!',
+        consequenceText: 'You overpower the merchant and take everything. Word of your cruelty spreads like wildfire across the Westfold.',
+        foodGain: 80,
+        reputationCost: 40,
+        flagToSet: 'bandit_notoriety',
+        color: 'bg-red-900'
+      }
+    ]
+  },
+  traveling_artisan: {
+    id: 'traveling_artisan',
+    title: 'The Master Artisan',
+    description: 'A wagon covered in blueprints and complex machinery waits at the fork. "I can make your caravan the pride of the Westfold... for the right price."',
+    icon: '⚒️',
+    choices: [
+      {
+        id: 'upgrade_speed',
+        text: 'Aerodynamic Panels (120 Gold)',
+        consequenceText: '"Your wagon will slice through the wind!" Your movement speed increases permanently.',
+        goldCost: 120,
+        flagToSet: 'speed_upgrade',
+        color: 'bg-cyan-600'
+      },
+      {
+        id: 'upgrade_capacity',
+        text: 'Extended Sleeping Quarters (150 Gold)',
+        consequenceText: '"More room for more stories." Your caravan can now carry up to 5 passengers.',
+        goldCost: 150,
+        flagToSet: 'capacity_upgrade',
+        color: 'bg-amber-600'
+      },
+      {
+        id: 'upgrade_efficiency',
+        text: 'Vacuum-Sealed Pantries (100 Gold)',
+        consequenceText: '"Not a crumb will go to waste." Your food consumption rate is significantly reduced.',
+        goldCost: 100,
+        flagToSet: 'efficiency_upgrade',
+        color: 'bg-emerald-700'
+      }
+    ]
+  },
+  desert_mirage: {
+    id: 'desert_mirage',
+    title: 'The Desert Mirage',
+    description: 'The air shimmers, revealing a shimmering oasis that shouldn\'t be there. Is it a dream or a gift of the sands?',
+    icon: '✨',
+    choices: [
+      {
+        id: 'investigate_mirage',
+        text: 'Investigate (50/50 Chance)',
+        consequenceText: 'It was real! You find a cache of ancient supplies and fresh water.',
+        foodGain: 40,
+        goldGain: 20,
+        color: 'bg-cyan-600'
+      },
+      {
+        id: 'scholar_truth',
+        text: 'Scholar\'s Insight',
+        consequenceText: 'Your Scholar realizes it is a localized temporal rift. You siphon energy from it, gaining massive Renown and 1 Life!',
+        requiredPassengerType: 'scholar',
+        reputationGain: 25,
+        color: 'bg-indigo-700'
+      }
+    ]
+  },
+  knights_vigil: {
+    id: 'knights_vigil',
+    title: 'Old Knight\'s Vigil',
+    description: 'An aging warrior in rusted plate armor sits by a small campfire. "I guard this milestone. My watch is nearly over, but my sword is still sharp."',
+    icon: '🛡️',
+    choices: [
+      {
+        id: 'guard_sparring',
+        text: 'Guard Sparring',
+        consequenceText: 'Your Guard and the Knight exchange techniques. The old warrior is impressed and grants you his blessing.',
+        requiredPassengerType: 'guard',
+        reputationGain: 15,
+        flagToSet: 'knight_blessing',
+        color: 'bg-slate-700'
+      },
+      {
+        id: 'offer_meal',
+        text: 'Share a Feast (25 Food)',
+        consequenceText: 'The Knight tells you tales of the Haven. You gain much Renown and a map of hidden paths.',
+        foodCost: 25,
+        reputationGain: 20,
+        goldGain: 50,
+        color: 'bg-orange-700'
+      }
+    ]
+  },
+  wandering_library: {
+    id: 'wandering_library',
+    title: 'Wandering Library',
+    description: 'A massive wagon overflowing with scrolls and books. The Librarian looks stressed. "Too much knowledge, too little shelf space!"',
+    icon: '📚',
+    choices: [
+      {
+        id: 'buy_maps',
+        text: 'Buy Secret Maps (40 Gold)',
+        consequenceText: 'The maps reveal gold-rich routes. (Gain 50% more Gold from future coins)',
+        goldCost: 40,
+        flagToSet: 'secret_maps',
+        color: 'bg-blue-600'
+      },
+      {
+        id: 'donate_scrolls',
+        text: 'Donate 10 Renown',
+        consequenceText: 'You share your tales. The Librarian writes a book about you!',
+        reputationCost: 10,
+        reputationGain: 40,
+        color: 'bg-indigo-600'
+      }
+    ]
+  },
   blocky_banker: {
     id: 'blocky_banker',
     title: 'The Blocky Banker',

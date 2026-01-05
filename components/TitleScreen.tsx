@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 interface TitleScreenProps {
@@ -8,11 +9,13 @@ interface TitleScreenProps {
   ambientVolume: number;
   onSetMusicVolume: (v: number) => void;
   onSetAmbientVolume: (v: number) => void;
+  onNarrate?: (text: string) => void;
 }
 
 const TitleScreen: React.FC<TitleScreenProps> = ({ 
   onStart, onInitAudio, onPlaySound, 
-  musicVolume, ambientVolume, onSetMusicVolume, onSetAmbientVolume 
+  musicVolume, ambientVolume, onSetMusicVolume, onSetAmbientVolume,
+  onNarrate
 }) => {
   const [step, setStep] = useState<'title' | 'story' | 'how-to' | 'settings'>('title');
   const [lineIndex, setLineIndex] = useState(0);
@@ -32,21 +35,26 @@ const TitleScreen: React.FC<TitleScreenProps> = ({
       const timer = setInterval(() => {
         setLineIndex(prev => {
           if (prev < storyLines.length - 1) {
+            const nextIndex = prev + 1;
             onPlaySound('type');
-            return prev + 1;
+            if (onNarrate) onNarrate(storyLines[nextIndex]);
+            return nextIndex;
           }
           clearInterval(timer);
           return prev;
         });
-      }, 1500);
+      }, 2800); // Increased interval to allow TTS to finish
       return () => clearInterval(timer);
     }
-  }, [step, onPlaySound]);
+  }, [step, onPlaySound, onNarrate]);
 
   const handleBegin = () => {
     onInitAudio();
     onPlaySound('confirm');
     setStep('story');
+    // Trigger sound and narration for the first line immediately
+    onPlaySound('type');
+    if (onNarrate) onNarrate(storyLines[0]);
   };
 
   const handleHowTo = () => {

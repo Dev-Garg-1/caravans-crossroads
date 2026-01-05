@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ResourceState } from '../types';
 
 interface UIOverlayProps {
   resources: ResourceState;
+  flags: Set<string>;
   musicVolume: number;
   ambientVolume: number;
   onSetMusicVolume: (v: number) => void;
@@ -12,6 +14,7 @@ interface UIOverlayProps {
 
 const UIOverlay: React.FC<UIOverlayProps> = ({ 
   resources, 
+  flags,
   musicVolume, ambientVolume, onSetMusicVolume, onSetAmbientVolume,
   onPlaySound
 }) => {
@@ -70,6 +73,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     setShowSettings(!showSettings);
   };
 
+  const maxPassengers = flags.has('capacity_upgrade') ? 5 : 3;
+
   return (
     <div className="absolute inset-0 pointer-events-none z-40 p-8 flex flex-col justify-between">
       {/* Top Right: Settings Button */}
@@ -124,7 +129,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
       {/* Right: Passengers List */}
       <div className="absolute right-8 top-24 w-64 flex flex-col gap-2 mt-16">
-         <h3 className="text-white text-xl font-bold uppercase tracking-widest bg-black/40 p-2 border-b-2 border-yellow-500 text-pixel">The Caravan Crew ({resources.passengers.length}/3)</h3>
+         <h3 className="text-white text-xl font-bold uppercase tracking-widest bg-black/40 p-2 border-b-2 border-yellow-500 text-pixel">The Caravan Crew ({resources.passengers.length}/{maxPassengers})</h3>
          {resources.passengers.length === 0 && (
              <p className="text-white/40 text-sm italic p-2 bg-black/20">Wandering the lonely roads alone...</p>
          )}
