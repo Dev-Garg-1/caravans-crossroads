@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface TitleScreenProps {
   onStart: () => void;
@@ -19,6 +19,7 @@ const TitleScreen: React.FC<TitleScreenProps> = ({
 }) => {
   const [step, setStep] = useState<'title' | 'story' | 'how-to' | 'settings'>('title');
   const [lineIndex, setLineIndex] = useState(0);
+  const intervalRef = useRef<number | null>(null);
 
   const storyLines = [
     "The year is 0x7E2. The Great Chunks have drifted apart.",
@@ -32,7 +33,7 @@ const TitleScreen: React.FC<TitleScreenProps> = ({
 
   useEffect(() => {
     if (step === 'story') {
-      const timer = setInterval(() => {
+      intervalRef.current = window.setInterval(() => {
         setLineIndex(prev => {
           if (prev < storyLines.length - 1) {
             const nextIndex = prev + 1;
@@ -40,11 +41,13 @@ const TitleScreen: React.FC<TitleScreenProps> = ({
             if (onNarrate) onNarrate(storyLines[nextIndex]);
             return nextIndex;
           }
-          clearInterval(timer);
+          if (intervalRef.current) clearInterval(intervalRef.current);
           return prev;
         });
-      }, 2800); // Increased interval to allow TTS to finish
-      return () => clearInterval(timer);
+      }, 2800); 
+      return () => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+      };
     }
   }, [step, onPlaySound, onNarrate]);
 
@@ -55,6 +58,12 @@ const TitleScreen: React.FC<TitleScreenProps> = ({
     // Trigger sound and narration for the first line immediately
     onPlaySound('type');
     if (onNarrate) onNarrate(storyLines[0]);
+  };
+
+  const handleSkip = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setLineIndex(storyLines.length - 1);
+    onPlaySound('select');
   };
 
   const handleHowTo = () => {
@@ -232,6 +241,10 @@ const TitleScreen: React.FC<TitleScreenProps> = ({
                     <span className="font-bold text-stone-800 uppercase">Onboard Person</span>
                     <kbd className="bg-white text-3xl px-3 py-1 border-4 border-black text-pixel">E</kbd>
                 </li>
+                <li className="bg-white/40 p-4 border-2 border-black/20 flex justify-between items-center">
+                    <span className="font-bold text-stone-800 uppercase">Exit/Enter Vehicle</span>
+                    <kbd className="bg-white text-3xl px-3 py-1 border-4 border-black text-pixel">C</kbd>
+                </li>
               </ul>
             </div>
           </div>
@@ -252,6 +265,17 @@ const TitleScreen: React.FC<TitleScreenProps> = ({
   return (
     <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black p-12 overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-stone-900 via-black to-black opacity-60" />
+      
+      {/* Skip Button */}
+      {lineIndex < storyLines.length - 1 && (
+        <button 
+          onClick={handleSkip}
+          className="absolute top-8 right-8 z-20 mc-button bg-stone-800 border-stone-600 text-stone-400 text-xl py-2 px-6 opacity-60 hover:opacity-100 transition-opacity"
+        >
+          SKIP INTRO [ESC]
+        </button>
+      )}
+
       <div className="max-w-4xl w-full space-y-10 relative z-10">
         <div className="space-y-6">
           {storyLines.slice(0, lineIndex + 1).map((line, i) => (

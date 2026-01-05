@@ -57,105 +57,101 @@ function decodeBase64(base64: string) {
   return bytes;
 }
 
-const playSound = (type: 'select' | 'confirm' | 'trade' | 'collision' | 'move' | 'gameover' | 'victory' | 'hurt' | 'onboard' | 'type' | 'shoot' | 'impact') => {
+const playSound = (type: 'select' | 'confirm' | 'trade' | 'collision' | 'move' | 'gameover' | 'victory' | 'hurt' | 'onboard' | 'type' | 'shoot' | 'impact' | 'coin' | 'money') => {
   if (!audioCtx) return;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
   const now = audioCtx.currentTime;
 
+  const createOsc = (freq: number, type: OscillatorType, startTime: number, duration: number, gainValue: number) => {
+    const osc = audioCtx!.createOscillator();
+    const gain = audioCtx!.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(gainValue, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx!.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  };
+
   switch(type) {
+    case 'coin':
+      // High-pitched double ding
+      createOsc(987.77, 'sine', now, 0.1, 0.15); // B5
+      createOsc(1318.51, 'sine', now + 0.05, 0.15, 0.15); // E6
+      break;
+    case 'money':
+      // Chaotic metal clinking
+      for(let i = 0; i < 4; i++) {
+        createOsc(1500 + Math.random() * 2000, 'triangle', now + i * 0.04, 0.1, 0.1);
+      }
+      break;
     case 'shoot':
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(880, now);
-      osc.frequency.exponentialRampToValueAtTime(110, now + 0.1);
-      gain.gain.setValueAtTime(0.05, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.1);
-      osc.start(); osc.stop(now + 0.1);
+      // Explosive "pew"
+      const shootOsc = audioCtx.createOscillator();
+      const shootGain = audioCtx.createGain();
+      shootOsc.type = 'sawtooth';
+      shootOsc.frequency.setValueAtTime(440, now);
+      shootOsc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+      shootGain.gain.setValueAtTime(0.1, now);
+      shootGain.gain.linearRampToValueAtTime(0, now + 0.15);
+      shootOsc.connect(shootGain);
+      shootGain.connect(audioCtx.destination);
+      shootOsc.start(now);
+      shootOsc.stop(now + 0.15);
+      // Small burst of noise for texture
+      const bufferSize = audioCtx.sampleRate * 0.05;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.05, now);
+      noiseGain.gain.linearRampToValueAtTime(0, now + 0.05);
+      noise.connect(noiseGain);
+      noiseGain.connect(audioCtx.destination);
+      noise.start(now);
       break;
     case 'impact':
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(100, now);
-      osc.frequency.exponentialRampToValueAtTime(10, now + 0.2);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.2);
-      osc.start(); osc.stop(now + 0.2);
+      const impactOsc = audioCtx.createOscillator();
+      const impactGain = audioCtx.createGain();
+      impactOsc.type = 'square';
+      impactOsc.frequency.setValueAtTime(120, now);
+      impactOsc.frequency.exponentialRampToValueAtTime(40, now + 0.1);
+      impactGain.gain.setValueAtTime(0.1, now);
+      impactGain.gain.linearRampToValueAtTime(0, now + 0.1);
+      impactOsc.connect(impactGain);
+      impactGain.connect(audioCtx.destination);
+      impactOsc.start(now);
+      impactOsc.stop(now + 0.1);
       break;
     case 'type':
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(200 + Math.random() * 50, now);
-      gain.gain.setValueAtTime(0.015, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.03);
-      osc.start(); osc.stop(now + 0.03);
+      createOsc(200 + Math.random() * 50, 'triangle', now, 0.03, 0.015);
       break;
     case 'onboard':
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.3);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.3);
-      osc.start(); osc.stop(now + 0.3);
+      createOsc(440, 'triangle', now, 0.3, 0.2);
       break;
     case 'select':
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.1);
-      osc.start(); osc.stop(now + 0.1);
+      createOsc(440, 'square', now, 0.1, 0.1);
       break;
     case 'confirm':
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(523, now);
-      osc.frequency.exponentialRampToValueAtTime(1046, now + 0.2);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.2);
-      osc.start(); osc.stop(now + 0.2);
+      createOsc(523.25, 'triangle', now, 0.2, 0.2);
       break;
-    case 'trade':
-      osc.type = 'sawtooth';
-      [440, 554, 659].forEach((f, i) => {
-        osc.frequency.setValueAtTime(f, now + i * 0.05);
-      });
-      gain.gain.setValueAtTime(0.05, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.2);
-      osc.start(); osc.stop(now + 0.2);
+    case 'trade': // Legacy/generic trade
+      [440, 554, 659].forEach((f, i) => createOsc(f, 'sawtooth', now + i * 0.05, 0.2, 0.05));
       break;
     case 'collision':
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(100, now);
-      osc.frequency.linearRampToValueAtTime(40, now + 0.3);
-      gain.gain.setValueAtTime(0.1, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.3);
-      osc.start(); osc.stop(now + 0.3);
+      createOsc(100, 'square', now, 0.3, 0.1);
       break;
     case 'hurt':
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(80, now);
-      osc.frequency.linearRampToValueAtTime(20, now + 0.5);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.5);
-      osc.start(); osc.stop(now + 0.5);
+      createOsc(80, 'sawtooth', now, 0.5, 0.2);
       break;
     case 'gameover':
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(120, now);
-      osc.frequency.linearRampToValueAtTime(30, now + 1.5);
-      gain.gain.setValueAtTime(0.3, now);
-      gain.gain.linearRampToValueAtTime(0, now + 1.5);
-      osc.start(); osc.stop(now + 1.5);
+      createOsc(120, 'sawtooth', now, 1.5, 0.3);
       break;
     case 'victory':
-      [523, 659, 783, 1046, 1318].forEach((f, i) => {
-        const o = audioCtx!.createOscillator();
-        const g = audioCtx!.createGain();
-        o.connect(g); g.connect(audioCtx!.destination);
-        o.frequency.setValueAtTime(f, now + i * 0.1);
-        g.gain.setValueAtTime(0.1, now + i * 0.1);
-        g.gain.linearRampToValueAtTime(0, now + i * 0.1 + 0.6);
-        o.start(now + i * 0.1); o.stop(now + i * 0.1 + 0.6);
-      });
+      [523, 659, 783, 1046, 1318].forEach((f, i) => createOsc(f, 'triangle', now + i * 0.1, 0.6, 0.1));
       break;
   }
 };
@@ -500,7 +496,7 @@ const App: React.FC = () => {
         const updated = prev.map(n => ({ ...n, x: n.x - SCROLL_SPEED * n.speedMultiplier })).filter(n => n.x > -150);
         const coinHitIndex = updated.findIndex(n => n.type === 'coin' && Math.abs(n.x - playerPos.x) < 35 && Math.abs(n.y - playerPos.y) < 35);
         if (coinHitIndex !== -1) {
-          playSound('trade');
+          playSound('coin');
           const val = updated[coinHitIndex].encounterId === 'big_coin' ? 25 : 5;
           setResources(r => ({ ...r, gold: r.gold + val }));
           return updated.filter((_, i) => i !== coinHitIndex);
@@ -554,6 +550,7 @@ const App: React.FC = () => {
     const down = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
       if (key === 'p') { setIsPaused(prev => !prev); playSound('select'); return; }
+      if (key === 'escape' && status === 'title') { /* skip handled in component */ return; }
       
       // Control Mode Switch Mechanic
       if (key === 'c' && status === 'playing') {
@@ -605,7 +602,7 @@ const App: React.FC = () => {
   const handleChoice = (choice: Choice) => {
     const hasRep = (choice.requiredFlag === 'reputation_10' ? resources.reputation >= 10 : true);
     if (!hasRep) return;
-    playSound('trade');
+    playSound('money');
     setResources(prev => ({
       ...prev,
       food: Math.max(0, Math.min(100, prev.food - (choice.foodCost || 0) + (choice.foodGain || 0))),
