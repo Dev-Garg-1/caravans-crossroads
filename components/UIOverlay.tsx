@@ -12,6 +12,8 @@ interface UIOverlayProps {
   onSetMouseControl: (enabled: boolean) => void;
   onPlaySound: (type: any) => void;
   notifications: {id: number, message: string}[];
+  showSettings: boolean;
+  onToggleSettings: () => void;
 }
 
 const UIOverlay: React.FC<UIOverlayProps> = ({ 
@@ -20,10 +22,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   musicVolume, ambientVolume, isMouseControlEnabled,
   onSetMusicVolume, onSetAmbientVolume, onSetMouseControl,
   onPlaySound,
-  notifications
+  notifications,
+  showSettings,
+  onToggleSettings
 }) => {
   const foodWidth = Math.min(100, (resources.food / 100) * 100);
-  const [showSettings, setShowSettings] = useState(false);
 
   // Animation states
   const [goldAnim, setGoldAnim] = useState<'gain' | 'loss' | null>(null);
@@ -72,11 +75,6 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     prevLives.current = resources.lives;
   }, [resources.lives]);
 
-  const toggleSettings = () => {
-    onPlaySound('select');
-    setShowSettings(!showSettings);
-  };
-
   const maxPassengers = flags.has('capacity_upgrade') ? 5 : 3;
 
   return (
@@ -95,7 +93,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       {/* Top Right: Settings Button */}
       <div className="absolute right-8 top-8 pointer-events-auto">
         <button 
-          onClick={toggleSettings}
+          onClick={onToggleSettings}
           onMouseEnter={() => onPlaySound('select')}
           className="mc-button w-14 h-14 text-2xl flex items-center justify-center bg-[#444] border-black hover:rotate-90 transition-transform duration-300"
         >
@@ -107,8 +105,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       {showSettings && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[200] pointer-events-auto animate-in fade-in duration-300 backdrop-blur-md">
           <div className="mc-container max-w-lg w-full p-0 overflow-hidden border-[8px] border-black shadow-[0_0_80px_rgba(0,0,0,0.8)]">
-            <div className="bg-indigo-600 p-6 border-b-8 border-black">
-              <h2 className="text-4xl md:text-5xl font-black text-center text-white text-pixel uppercase leading-none">GAME SETTINGS</h2>
+            <div className="bg-indigo-600 p-6 border-b-8 border-black flex justify-between items-center">
+              <h2 className="text-4xl md:text-5xl font-black text-white text-pixel uppercase leading-none">GAME SETTINGS</h2>
+              <span className="text-indigo-200 text-xs font-bold uppercase tracking-widest bg-black/30 px-2 py-1">Shortcut: [S]</span>
             </div>
             <div className="bg-[#c6c6c6] p-8 space-y-8">
               {/* Audio Config */}
@@ -160,11 +159,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             </div>
             <div className="bg-[#3a3a3a] p-4">
               <button 
-                onClick={toggleSettings}
+                onClick={onToggleSettings}
                 onMouseEnter={() => onPlaySound('select')}
                 className="mc-button w-full text-2xl py-3 bg-amber-600 hover:bg-amber-500 border-2 border-black font-black uppercase tracking-widest text-pixel shadow-[0_4px_0_#92400e]"
               >
-                BACK TO ROAD
+                BACK TO ROAD [S]
               </button>
             </div>
           </div>

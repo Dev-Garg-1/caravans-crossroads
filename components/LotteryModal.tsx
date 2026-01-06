@@ -13,20 +13,21 @@ interface Reward {
 }
 
 const REWARDS: Reward[] = [
-  { id: 'gold_stash', label: '100 GOLD', icon: '💰', gold: 100, type: 'resource', color: '#fbbf24' },
-  { id: 'food_drop', label: '50 FOOD', icon: '🥩', food: 50, type: 'resource', color: '#f87171' },
-  { id: 'fame_boost', label: '30 RENOWN', icon: '⭐', rep: 30, type: 'resource', color: '#60a5fa' },
-  { id: 'mystic_shop', label: 'MYSTERY SHOP', icon: '🎁', type: 'shop', color: '#d946ef' },
-  { id: 'extra_life', label: 'BONUS LIFE', icon: '❤️', lives: 1, type: 'resource', color: '#ef4444' },
-  { id: 'nothing', label: 'EMPTY BOX', icon: '💨', type: 'resource', color: '#71717a' },
+  { id: 'gold_stash', label: 'ANCIENT ARTIFACT', icon: '🏺', gold: 125, type: 'resource', color: '#fbbf24' },
+  { id: 'food_drop', label: 'SURPLUS RATIONS', icon: '🥩', food: 50, gold: 40, type: 'resource', color: '#f87171' },
+  { id: 'fame_boost', label: 'LOST RECORDS', icon: '📜', rep: 30, gold: 60, type: 'resource', color: '#60a5fa' },
+  { id: 'mystic_relic', label: 'MYSTIC RELIC', icon: '💎', gold: 150, type: 'resource', color: '#d946ef' },
+  { id: 'extra_life_token', label: 'VITALITY CUBE', icon: '🔋', gold: 100, type: 'resource', color: '#ef4444' },
+  { id: 'nothing', label: 'RUSTY SCRAP', icon: '⚙️', gold: 5, type: 'resource', color: '#71717a' },
 ];
 
 interface LotteryModalProps {
   onComplete: (reward: Reward) => void;
+  onClose: () => void;
   onPlaySound: (type: any) => void;
 }
 
-const LotteryModal: React.FC<LotteryModalProps> = ({ onComplete, onPlaySound }) => {
+const LotteryModal: React.FC<LotteryModalProps> = ({ onComplete, onClose, onPlaySound }) => {
   const [spinning, setSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [finished, setFinished] = useState(false);
@@ -65,8 +66,18 @@ const LotteryModal: React.FC<LotteryModalProps> = ({ onComplete, onPlaySound }) 
 
   return (
     <div className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
-      <div className="mc-container max-w-md w-full p-6 flex flex-col items-center gap-6 border-[8px] border-black shadow-[0_0_60px_#d946ef88]">
-        <h2 className="text-4xl font-black text-pixel uppercase text-[#d946ef] drop-shadow-md tracking-widest">
+      <div className="mc-container max-w-md w-full p-6 flex flex-col items-center gap-6 border-[8px] border-black shadow-[0_0_60px_#d946ef88] relative">
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          disabled={spinning}
+          className="absolute -top-5 -right-5 w-10 h-10 bg-red-600 border-4 border-black text-white font-black text-2xl flex items-center justify-center shadow-[4px_4px_0px_#000] hover:bg-red-500 active:translate-y-1 active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed z-50"
+          title="Cancel"
+        >
+          X
+        </button>
+
+        <h2 className="text-4xl font-black text-pixel uppercase text-[#d946ef] drop-shadow-md tracking-widest text-center">
           MYSTERY WHEEL
         </h2>
 
@@ -117,15 +128,16 @@ const LotteryModal: React.FC<LotteryModalProps> = ({ onComplete, onPlaySound }) 
         ) : (
           <div className="w-full space-y-4 animate-in zoom-in duration-300">
              <div className="bg-white p-4 border-[4px] border-black text-center shadow-lg">
-                <p className="text-stone-400 font-bold uppercase tracking-widest text-[10px] mb-1">REWARD UNLOCKED</p>
+                <p className="text-stone-400 font-bold uppercase tracking-widest text-[10px] mb-1">REWARD FOUND</p>
                 <h3 className="text-3xl font-black text-stone-900 uppercase leading-none mb-2">{selectedReward?.label}</h3>
                 <span className="text-5xl">{selectedReward?.icon}</span>
+                <p className="text-emerald-600 font-bold uppercase mt-2 text-sm italic">VALUABLE FOR TRADING</p>
              </div>
              <button 
                 onClick={() => selectedReward && onComplete(selectedReward)}
                 className="mc-button w-full text-2xl py-3 bg-emerald-600 hover:bg-emerald-500 font-black uppercase text-pixel shadow-[0_4px_0_#064e3b]"
              >
-                CLAIM & CONTINUE
+                TRADE & CONTINUE
              </button>
           </div>
         )}

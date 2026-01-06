@@ -124,6 +124,7 @@ const App: React.FC = () => {
   const [controlMode, setControlMode] = useState<ControlMode>('caravan');
   const [theme, setTheme] = useState<ThemeType>('desert');
   const [isPaused, setIsPaused] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [victoryType, setVictoryType] = useState<VictoryType | null>(null);
   const [resources, setResources] = useState<ResourceState>(INITIAL_RESOURCES);
   const [playerPos, setPlayerPos] = useState({ x: 200, y: 300 });
@@ -149,11 +150,11 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (audioCtx) {
-      if (bgmGain) bgmGain.gain.setTargetAtTime(BASE_BGM_GAIN * musicVolume * (isPaused ? 0.05 : 0.15), audioCtx.currentTime, 0.1);
+      if (bgmGain) bgmGain.gain.setTargetAtTime(BASE_BGM_GAIN * musicVolume * (isPaused || showSettings ? 0.05 : 0.15), audioCtx.currentTime, 0.1);
       if (introGain) introGain.gain.setTargetAtTime(BASE_INTRO_GAIN * musicVolume * 0.15, audioCtx.currentTime, 0.1);
-      if (ambientGain) ambientGain.gain.setTargetAtTime(BASE_AMBIENT_GAIN * ambientVolume * (isPaused ? 0.05 : 0.2), audioCtx.currentTime, 0.1);
+      if (ambientGain) ambientGain.gain.setTargetAtTime(BASE_AMBIENT_GAIN * ambientVolume * (isPaused || showSettings ? 0.05 : 0.2), audioCtx.currentTime, 0.1);
     }
-  }, [musicVolume, ambientVolume, isPaused]);
+  }, [musicVolume, ambientVolume, isPaused, showSettings]);
 
   const startIntroMusic = useCallback(() => {
     if (isIntroPlaying || !audioCtx) return;
@@ -237,7 +238,7 @@ const App: React.FC = () => {
     setControlMode('caravan');
     setNpcs([]); setBullets([]); setScrollOffset(0);
     setFlags(new Set()); setVictoryType(null);
-    setIsPaused(false); setStatus('playing'); setNotifications([]);
+    setIsPaused(false); setShowSettings(false); setStatus('playing'); setNotifications([]);
     
     // Welcome message
     addNotification("Welcome to game, game started");
@@ -322,7 +323,7 @@ const App: React.FC = () => {
   };
 
   const gameLoop = useCallback(() => {
-    if (status !== 'playing' || isPaused) { requestRef.current = requestAnimationFrame(gameLoop); return; }
+    if (status !== 'playing' || isPaused || showSettings) { requestRef.current = requestAnimationFrame(gameLoop); return; }
     let vSpeedMult = 1.0, vFoodMult = 1.0;
     switch(resources.vehicle) {
       case 'bike': vSpeedMult = 1.4; vFoodMult = 0.8; break;
@@ -339,7 +340,7 @@ const App: React.FC = () => {
           const tx = mousePos.current.x;
           const ty = mousePos.current.y;
           nx += (tx - prev.x) * 0.15;
-          ny += (ty - prev.y) * 0.15;
+          ny += (tx - prev.y) * 0.15;
         } else {
           if (keys.current.has('w') || keys.current.has('arrowup')) ny -= PLAYER_SPEED * 1.2;
           if (keys.current.has('s') || keys.current.has('arrowdown')) ny += PLAYER_SPEED * 1.2;
@@ -422,7 +423,7 @@ const App: React.FC = () => {
       if (spawnTimer.current > 1000 && resources.progress < 95) { spawnNPC(); spawnTimer.current = 0; }
     }
     requestRef.current = requestAnimationFrame(gameLoop);
-  }, [status, playerPos, personPos, controlMode, npcs, spawnNPC, isPaused, flags, resources.vehicle, resources.food, resources.lives, resources.progress, resources.passengers, isMouseControlEnabled]);
+  }, [status, playerPos, personPos, controlMode, npcs, spawnNPC, isPaused, showSettings, flags, resources.vehicle, resources.food, resources.lives, resources.progress, resources.passengers, isMouseControlEnabled]);
 
   useEffect(() => {
     requestRef.current = requestAnimationFrame(gameLoop);
@@ -478,11 +479,20 @@ const App: React.FC = () => {
         return;
       }
 
+      if (key === 's' && status === 'playing') {
+        setShowSettings(prev => !prev);
+        playSound('select');
+        return;
+      }
+
       if (key === 'escape' || (key === ' ' && status === 'playing' && !activeEncounter)) {
-        if (status === 'vehicle_select') {
+        if (showSettings) {
+          setShowSettings(false);
+        } else if (status === 'vehicle_select') {
           setStatus('playing');
-        } else if (status === 'playing') {
-          setIsPaused(prev => !prev);
+        } else if (status === 'playing' || status === 'lottery') {
+          setStatus('playing');
+          if (status === 'playing') setIsPaused(prev => !prev);
         }
         playSound('select');
         return;
@@ -530,7 +540,7 @@ const App: React.FC = () => {
     const up = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase());
     window.addEventListener('keydown', down); window.addEventListener('keyup', up);
     return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
-  }, [status, isPaused, activeEncounter, lastChoiceResult, npcs, playerPos, personPos, controlMode, flags, resources.passengers]);
+  }, [status, isPaused, showSettings, activeEncounter, lastChoiceResult, npcs, playerPos, personPos, controlMode, flags, resources.passengers]);
 
   const handleChoice = (choice: Choice) => {
     playSound('money');
@@ -556,33 +566,15 @@ const App: React.FC = () => {
   };
 
   const handleLotteryReward = (reward: any) => {
-    playSound('win');
-    if (reward.type === 'shop') {
-      // Special trading encounter
-      setActiveEncounter({
-        id: 'lottery_shop',
-        title: 'MYSTERY BLACK MARKET',
-        description: 'The box explodes into a temporary stall. High-tier goods at low-tier prices!',
-        icon: '🎁',
-        choices: [
-          { id: 'mystery_1', text: 'Forbidden Spice (10G -> 60 Food)', goldCost: 10, foodGain: 60, consequenceText: 'Spicy.', color: 'bg-indigo-600' },
-          { id: 'mystery_2', text: 'Black Market Map (25G -> 40 Renown)', goldCost: 25, reputationGain: 40, consequenceText: 'A path revealed.', color: 'bg-purple-600' },
-          { id: 'mystery_3', text: 'Midas Touch (50G -> 150G)', goldCost: 50, goldGain: 150, consequenceText: 'Pure alchemy.', color: 'bg-yellow-600' },
-        ]
-      });
-      setStatus('encounter');
-      addNotification(`Prize Claimed: ${reward.label}`);
-    } else {
-      setResources(prev => ({
-        ...prev,
-        food: Math.min(100, prev.food + (reward.food || 0)),
-        gold: prev.gold + (reward.gold || 0),
-        reputation: prev.reputation + (reward.rep || 0),
-        lives: Math.min(3, prev.lives + (reward.lives || 0)),
-      }));
-      addNotification(`Prize Claimed: ${reward.label}`);
-      setStatus('playing');
-    }
+    playSound('money');
+    // Calculate a trade value for the mystery reward
+    const tradeValue = reward.gold || (reward.food ? 45 : reward.rep ? 35 : reward.lives ? 100 : 25);
+    setResources(prev => ({
+      ...prev,
+      gold: prev.gold + tradeValue,
+    }));
+    addNotification("mystery traded successfully");
+    setStatus('playing');
   };
 
   const closeEncounter = () => {
@@ -615,11 +607,13 @@ const App: React.FC = () => {
             onSetMouseControl={setIsMouseControlEnabled}
             onPlaySound={playSound} 
             notifications={notifications} 
+            showSettings={showSettings}
+            onToggleSettings={() => setShowSettings(!showSettings)}
         />
       )}
       {status === 'title' && <TitleScreen onStart={startGame} onInitAudio={handleInitAudio} onPlaySound={playSound} musicVolume={musicVolume} ambientVolume={ambientVolume} onSetMusicVolume={setMusicVolume} onSetAmbientVolume={setAmbientVolume} />}
       {status === 'encounter' && activeEncounter && <ChoiceModal encounter={activeEncounter} onChoice={handleChoice} result={lastChoiceResult} onClose={closeEncounter} flags={flags} reputation={resources.reputation} passengers={resources.passengers} onPlaySound={playSound} />}
-      {status === 'lottery' && <LotteryModal onComplete={handleLotteryReward} onPlaySound={playSound} />}
+      {status === 'lottery' && <LotteryModal onComplete={handleLotteryReward} onClose={() => setStatus('playing')} onPlaySound={playSound} />}
       {status === 'vehicle_select' && <VehicleModal currentVehicle={resources.vehicle} onSelect={handleVehicleSelect} onClose={() => setStatus('playing')} onPlaySound={playSound} />}
       {(status === 'gameover' || status === 'victory') && <EndScreen status={status} victoryType={victoryType} resources={resources} onRestart={() => startGame(theme)} onPlaySound={playSound} />}
       {isPaused && (
@@ -638,6 +632,10 @@ const App: React.FC = () => {
                 <div className="flex justify-between items-center text-stone-800 font-bold uppercase text-lg">
                     <span>MOVE</span>
                     <kbd className="text-sm">W A S D</kbd>
+                </div>
+                <div className="flex justify-between items-center text-stone-800 font-bold uppercase text-lg">
+                    <span>SETTINGS</span>
+                    <kbd className="text-sm">S</kbd>
                 </div>
                 <div className="flex justify-between items-center text-stone-800 font-bold uppercase text-lg">
                     <span>TRADE</span>
@@ -670,7 +668,7 @@ const App: React.FC = () => {
       )}
       {status === 'playing' && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40 bg-black/50 px-6 py-2 border-2 border-white/20 text-yellow-400 font-bold uppercase text-pixel tracking-widest pointer-events-none text-center">
-          {controlMode === 'caravan' ? "PRESS [C] EXIT | [V] HANGAR | [P] PASSENGER TRADE | [SPACE] PAUSE | [F] FULLSCREEN" : "LEFT CLICK SHOOT | WALK NEAR & [C] ENTER | [F] FULLSCREEN"}
+          {controlMode === 'caravan' ? "PRESS [S] SETTINGS | [C] EXIT | [V] HANGAR | [P] PASSENGER TRADE | [SPACE] PAUSE | [F] FULLSCREEN" : "LEFT CLICK SHOOT | WALK NEAR & [C] ENTER | [F] FULLSCREEN"}
         </div>
       )}
     </div>
