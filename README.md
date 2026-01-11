@@ -2,6 +2,8 @@
 
 Caravan & Crossroads is a fast-paced trading and travel game focused on player freedom, real-time control, and meaningful encounters. You begin with a single caravan and explore living trade routes where every trade, passenger, and decision shapes the journey.
 
+It's available on the link - [game-link](https://team-phoenix.itch.io/caravans-crossroads-phoenix)
+
 ---
 
 ## Table of Contents
